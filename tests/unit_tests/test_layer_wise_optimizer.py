@@ -94,16 +94,22 @@ class TestLayerWiseOptimizer:
         Returns:
             tuple: (model, optimizer, pg_collection)
         """
+        from megatron.training.training import wrap_model_chunks_with_ddp
+
         if model_kwargs is None:
             model_kwargs = {}
 
         model = model_class(**model_kwargs).bfloat16().cuda()
         model.requires_grad_(True)
 
-        ddp_config = DistributedDataParallelConfig(use_distributed_optimizer=False)
-        model = DistributedDataParallel(
-            TransformerConfig(num_attention_heads=1, num_layers=1), ddp_config, model
-        )
+        ddp_config = DistributedDataParallelConfig()
+        model = wrap_model_chunks_with_ddp(
+            [model],
+            TransformerConfig(num_attention_heads=1, num_layers=1),
+            ddp_config,
+            optimizer_name='muon',
+            use_layer_wise_distributed_optimizer=use_layer_wise,
+        )[0]
         if copy_from:
             model.module.load_state_dict(copy_from.module.state_dict())
         else:
@@ -155,6 +161,8 @@ class TestLayerWiseOptimizer:
         Returns:
             tuple: (model, optimizer, pg_collection)
         """
+        from megatron.training.training import wrap_model_chunks_with_ddp
+
         if model_kwargs is None:
             model_kwargs = {}
 
@@ -162,15 +170,18 @@ class TestLayerWiseOptimizer:
         model.requires_grad_(True)
 
         ddp_config = DistributedDataParallelConfig(
-            use_distributed_optimizer=False,
             overlap_param_gather=True,
             overlap_grad_reduce=True,
             grad_reduce_in_fp32=grad_reduce_in_fp32,
             bucket_size=bucket_size,
         )
-        model = DistributedDataParallel(
-            TransformerConfig(num_attention_heads=1, num_layers=1), ddp_config, model
-        )
+        model = wrap_model_chunks_with_ddp(
+            [model],
+            TransformerConfig(num_attention_heads=1, num_layers=1),
+            ddp_config,
+            optimizer_name='muon',
+            use_layer_wise_distributed_optimizer=True,
+        )[0]
         if copy_from:
             model.module.load_state_dict(copy_from.module.state_dict())
         else:

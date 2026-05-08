@@ -179,9 +179,23 @@ def init_checkpointing_mock_args(args, ckpt_dir, fully_parallel=False):
 def setup_model_and_optimizer(
     seed, tp, pp, initialize_fn=initialize_gpt_model, bf16=True, dist_opt=True, optimizer='adam'
 ):
+    optimizer_type = optimizer
+    use_layer_wise = False
+    if optimizer_type == 'dist_muon':
+        optimizer = 'muon'
+        use_layer_wise = True
+    if optimizer_type in ('muon', 'dist_muon') and dist_opt:
+        use_layer_wise = True
+        # Layerwise requires use_distributed_optimizer=True; this matches the
+        # production wiring in training.get_model.
+
     mock_args = parse_args(ignore_unknown_args=True)
     with mock.patch('megatron.training.training.get_args', new=lambda: mock_args):
         init_basic_mock_args(mock_args, tp, pp, bf16=bf16)
+        mock_args.use_distributed_optimizer = dist_opt
+        if use_layer_wise:
+            mock_args.use_layer_wise_distributed_optimizer = True
+            mock_args.optimizer = optimizer
         model = get_model(
             partial(
                 initialize_fn,
@@ -192,15 +206,6 @@ def setup_model_and_optimizer(
                 bf16=bf16,
             )
         )
-
-    optimizer_type = optimizer
-    use_layer_wise = False
-    if optimizer_type == 'dist_muon':
-        optimizer = 'muon'
-        use_layer_wise = True
-    if optimizer_type in ('muon', 'dist_muon') and dist_opt:
-        use_layer_wise = True
-        dist_opt = False
 
     config = OptimizerConfig(
         bf16=bf16,
@@ -273,9 +278,23 @@ def setup_moe_model_and_optimizer(
     use_glu=False,
     optimizer='adam',
 ):
+    optimizer_type = optimizer
+    use_layer_wise = False
+    if optimizer_type == 'dist_muon':
+        optimizer = 'muon'
+        use_layer_wise = True
+    if optimizer_type in ('muon', 'dist_muon') and dist_opt:
+        use_layer_wise = True
+        # Layerwise requires use_distributed_optimizer=True; this matches the
+        # production wiring in training.get_model.
+
     mock_args = parse_args(ignore_unknown_args=True)
     with mock.patch('megatron.training.training.get_args', new=lambda: mock_args):
         init_basic_mock_args(mock_args, tp, pp, bf16=bf16)
+        mock_args.use_distributed_optimizer = dist_opt
+        if use_layer_wise:
+            mock_args.use_layer_wise_distributed_optimizer = True
+            mock_args.optimizer = optimizer
         model = get_model(
             partial(
                 initialize_fn,
@@ -291,15 +310,6 @@ def setup_moe_model_and_optimizer(
                 bf16=bf16,
             )
         )
-
-    optimizer_type = optimizer
-    use_layer_wise = False
-    if optimizer_type == 'dist_muon':
-        optimizer = 'muon'
-        use_layer_wise = True
-    if optimizer_type in ('muon', 'dist_muon') and dist_opt:
-        use_layer_wise = True
-        dist_opt = False
 
     config = OptimizerConfig(
         bf16=bf16,
