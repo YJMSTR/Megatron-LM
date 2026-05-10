@@ -93,7 +93,13 @@ class DSAIndexerLossLoggingHelper:
         """Collect and reduce the indexer losses across ranks."""
         tracker = DSAIndexerLossLoggingHelper.tracker
         if "values" not in tracker:
-            return
+            # This rank has no CSA layers (e.g. first PP stage with all-dense layers),
+            # but must still participate in the PP all_reduce to avoid deadlock.
+            from megatron.training import get_args
+
+            args = get_args()
+            num_layers = args.num_layers
+            tracker["values"] = torch.zeros(num_layers, device=torch.cuda.current_device())
         values = tracker["values"]
 
         torch.distributed.all_reduce(
